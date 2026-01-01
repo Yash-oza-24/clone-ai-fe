@@ -1,6 +1,115 @@
-import React from 'react';
-import { MessageSquare, Plus, Trash2, ChevronLeft, Sparkles, Clock, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MessageSquare, Plus, Trash2, ChevronLeft, Sparkles, Clock, Zap, X, AlertTriangle } from 'lucide-react';
 
+// ═══════════════════════════════════════════════════════════════
+// Delete Confirmation Modal Component (Separate & Reusable)
+// ═══════════════════════════════════════════════════════════════
+const DeleteConfirmModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title = "this conversation" 
+}) => {
+  if (!isOpen) return null;
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+      onClick={handleOverlayClick}
+    >
+      {/* Backdrop with blur */}
+      <div className="absolute inset-0 backdrop-blur-md" />
+
+      {/* Modal Container */}
+      <div 
+        className="relative bg-gray-900 border border-red-500/30 rounded-2xl shadow-2xl w-full max-w-md 
+                   animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header with Icon */}
+        <div className="p-6 pb-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0 border border-red-500/30">
+              <AlertTriangle size={24} className="text-red-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-white mb-1">Delete Conversation?</h3>
+              <p className="text-sm text-gray-400">
+                This action cannot be undone
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0"
+              aria-label="Close modal"
+            >
+              <X size={20} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 pb-6">
+          <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 mb-6">
+            <p className="text-sm text-gray-300">
+              You are about to permanently delete{' '}
+              <span className="text-white font-semibold">"{title}"</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              All messages and data associated with this conversation will be lost forever.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 text-sm font-semibold text-gray-300 bg-gray-800 
+                       hover:bg-gray-700 rounded-xl transition-all active:scale-95 border border-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                onConfirm();
+                onClose();
+              }}
+              className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-red-600 
+                       hover:bg-red-700 rounded-xl transition-all active:scale-95 shadow-lg 
+                       shadow-red-500/20 border border-red-500/50"
+            >
+              Delete Forever
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Main Sidebar Component
+// ═══════════════════════════════════════════════════════════════
 const Sidebar = ({ 
   conversations, 
   onSelectConversation, 
@@ -11,6 +120,38 @@ const Sidebar = ({
   onToggle,
   loading = false
 }) => {
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    conversationId: null,
+    conversationTitle: ''
+  });
+
+  // Handle delete click
+  const handleDeleteClick = (e, conv) => {
+    e.stopPropagation();
+    setDeleteModal({
+      isOpen: true,
+      conversationId: conv._id,
+      conversationTitle: conv.title
+    });
+  };
+
+  // Handle delete confirm
+  const handleDeleteConfirm = () => {
+    if (deleteModal.conversationId) {
+      onDeleteConversation(deleteModal.conversationId);
+    }
+  };
+
+  // Handle delete cancel
+  const handleDeleteCancel = () => {
+    setDeleteModal({
+      isOpen: false,
+      conversationId: null,
+      conversationTitle: ''
+    });
+  };
+
   // Group conversations by date
   const groupConversationsByDate = (convs) => {
     const today = new Date();
@@ -46,12 +187,20 @@ const Sidebar = ({
 
   return (
     <>
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title={deleteModal.conversationTitle}
+      />
+
       {/* Sidebar Toggle Button */}
       <button
         onClick={onToggle}
-        className={`fixed top-4 z-50 p-2.5 bg-gray-800 dark:bg-gray-700 text-white rounded-xl hover:bg-gray-700 dark:hover:bg-gray-600 transition-all shadow-lg border border-gray-700/50 ${
-          isOpen ? 'left-[272px]' : 'left-4'
-        }`}
+        className={`fixed top-4 z-50 p-2.5 bg-gray-800 dark:bg-gray-700 text-white rounded-xl 
+                   hover:bg-gray-700 dark:hover:bg-gray-600 transition-all shadow-lg 
+                   border border-gray-700/50 ${isOpen ? 'left-[272px]' : 'left-4'}`}
         aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
       >
         <ChevronLeft size={20} className={`transition-transform duration-300 ${isOpen ? '' : 'rotate-180'}`} />
@@ -93,8 +242,9 @@ const Sidebar = ({
           </div>
           <button
             onClick={onNewChat}
-            className="group w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 
-                     rounded-xl transition-all flex items-center justify-center gap-2.5 text-sm font-semibold shadow-md active:scale-95 duration-200"
+            className="group w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 
+                     dark:hover:bg-blue-700 rounded-xl transition-all flex items-center justify-center 
+                     gap-2.5 text-sm font-semibold shadow-md active:scale-95 duration-200"
           >
             <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
             New Conversation
@@ -115,7 +265,7 @@ const Sidebar = ({
                   conversations={groupedConversations.today}
                   activeId={activeId}
                   onSelectConversation={onSelectConversation}
-                  onDeleteConversation={onDeleteConversation}
+                  onDeleteClick={handleDeleteClick}
                 />
               )}
               {groupedConversations.yesterday.length > 0 && (
@@ -124,7 +274,7 @@ const Sidebar = ({
                   conversations={groupedConversations.yesterday}
                   activeId={activeId}
                   onSelectConversation={onSelectConversation}
-                  onDeleteConversation={onDeleteConversation}
+                  onDeleteClick={handleDeleteClick}
                 />
               )}
               {groupedConversations.lastWeek.length > 0 && (
@@ -133,7 +283,7 @@ const Sidebar = ({
                   conversations={groupedConversations.lastWeek}
                   activeId={activeId}
                   onSelectConversation={onSelectConversation}
-                  onDeleteConversation={onDeleteConversation}
+                  onDeleteClick={handleDeleteClick}
                 />
               )}
               {groupedConversations.older.length > 0 && (
@@ -142,7 +292,7 @@ const Sidebar = ({
                   conversations={groupedConversations.older}
                   activeId={activeId}
                   onSelectConversation={onSelectConversation}
-                  onDeleteConversation={onDeleteConversation}
+                  onDeleteClick={handleDeleteClick}
                 />
               )}
             </>
@@ -180,7 +330,10 @@ const Sidebar = ({
   );
 };
 
-// Loading State Component
+// ═══════════════════════════════════════════════════════════════
+// Supporting Components
+// ═══════════════════════════════════════════════════════════════
+
 const LoadingState = () => {
   return (
     <div className="text-center text-gray-400 mt-12 px-4">
@@ -194,7 +347,6 @@ const LoadingState = () => {
         </div>
       </div>
       
-      {/* Loading Skeleton */}
       <div className="mt-8 space-y-3">
         {[1, 2, 3].map((i) => (
           <div key={i} className="animate-pulse">
@@ -206,7 +358,6 @@ const LoadingState = () => {
   );
 };
 
-// Empty State Component
 const EmptyState = () => {
   return (
     <div className="text-center text-gray-500 mt-12 px-4">
@@ -219,8 +370,7 @@ const EmptyState = () => {
   );
 };
 
-// Conversation Group Component
-const ConversationGroup = ({ title, conversations, activeId, onSelectConversation, onDeleteConversation }) => {
+const ConversationGroup = ({ title, conversations, activeId, onSelectConversation, onDeleteClick }) => {
   return (
     <div className="space-y-1">
       <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider px-2 mb-2 flex items-center gap-2">
@@ -231,30 +381,25 @@ const ConversationGroup = ({ title, conversations, activeId, onSelectConversatio
         <div
           key={conv._id}
           onClick={() => onSelectConversation(conv._id)}
-          className={`
-            group relative px-3.5 py-3 rounded-xl cursor-pointer
-            transition-all duration-200
-            ${activeId === conv._id 
-              ? 'bg-blue-600/20 border border-blue-500/30' 
-              : 'hover:bg-gray-800/60 dark:hover:bg-gray-900/60 border border-transparent'
-            }
-          `}
+          className={`group relative px-3.5 py-3 rounded-xl cursor-pointer transition-all duration-200 
+                     ${activeId === conv._id 
+                       ? 'bg-blue-600/20 border border-blue-500/30' 
+                       : 'hover:bg-gray-800/60 dark:hover:bg-gray-900/60 border border-transparent'
+                     }`}
         >
           <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${activeId === conv._id ? 'bg-blue-400' : 'bg-gray-600'}`}></div>
-            <MessageSquare 
-              size={16} 
-              className={`flex-shrink-0 ${activeId === conv._id ? 'text-blue-400' : 'text-gray-500'}`} 
+            <MessageSquare
+              size={16}
+              className={`flex-shrink-0 ${activeId === conv._id ? 'text-blue-400' : 'text-gray-500'}`}
             />
             <span className={`flex-1 text-sm truncate font-medium ${activeId === conv._id ? 'text-white' : 'text-gray-300'}`}>
               {conv.title}
             </span>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteConversation(conv._id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 rounded-lg transition-all"
+              onClick={(e) => onDeleteClick(e, conv)}
+              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 
+                       rounded-lg transition-all active:scale-90"
               aria-label="Delete conversation"
             >
               <Trash2 size={14} className="text-red-400" />
