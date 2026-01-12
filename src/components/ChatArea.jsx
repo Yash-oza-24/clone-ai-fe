@@ -52,9 +52,15 @@ const ChatArea = ({ messages, input, setInput, onSendMessage, loading }) => {
           ) : (
             <div className="py-4 sm:py-8 space-y-4 sm:space-y-6">
               {messages.map((msg, index) => (
-                <MessageBubble key={index} message={msg} index={index} />
+                <MessageBubble 
+                  key={index} 
+                  message={msg} 
+                  index={index} 
+                  isLatest={index === messages.length - 1} 
+                  loading={loading} 
+                />
               ))}
-              {loading && <TypingIndicator />}
+              {loading && messages.length > 0 && messages[messages.length - 1].role === 'user' && <TypingIndicator />}
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -87,7 +93,7 @@ const ChatArea = ({ messages, input, setInput, onSendMessage, loading }) => {
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="absolute right-2 bottom-2 p-2.5 sm:p-3 rounded-xl
+                className="absolute right-2 bottom-3 p-2.5 sm:p-3 rounded-xl
                          bg-blue-600 hover:bg-blue-700 
                          dark:bg-blue-600 dark:hover:bg-blue-700
                          text-white disabled:opacity-30 disabled:cursor-not-allowed
@@ -254,7 +260,7 @@ const WelcomeScreen = ({ onSuggestionClick }) => {
   );
 };
 
-// Enhanced Code Block Component (Same, already good)
+// Enhanced Code Block Component
 const CodeBlock = ({ language, value }) => {
   const [copied, setCopied] = useState(false);
 
@@ -337,16 +343,49 @@ const InlineCode = ({ children }) => {
   );
 };
 
-// **COMPLETELY REDESIGNED MESSAGE BUBBLE** - Modern Chat UI
-const MessageBubble = ({ message, index }) => {
+// **FAST TYPING EFFECT MESSAGE BUBBLE** - ChatGPT-like Speed
+const MessageBubble = ({ message, index, isLatest, loading }) => {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
+  const [displayedContent, setDisplayedContent] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  // Fast typing effect for the latest bot message
+  useEffect(() => {
+    if (!isUser && isLatest && message.content && !message.isComplete) {
+      setIsTyping(true);
+      let currentIndex = 0;
+      const content = message.content;
+      
+      // FAST TYPING SETTINGS - Adjust these for speed
+      const typingSpeed = 8;        // 8ms interval (lower = faster)
+      const charsPerInterval = 3;   // Type 3 characters at once (higher = faster)
+      
+      const typingInterval = setInterval(() => {
+        if (currentIndex < content.length) {
+          currentIndex += charsPerInterval;
+          setDisplayedContent(content.slice(0, Math.min(currentIndex, content.length)));
+        } else {
+          setIsTyping(false);
+          clearInterval(typingInterval);
+        }
+      }, typingSpeed);
+
+      return () => clearInterval(typingInterval);
+    } else {
+      // For older messages or user messages, show immediately
+      setDisplayedContent(message.content);
+      setIsTyping(false);
+    }
+  }, [message.content, isUser, isLatest, message.isComplete]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const contentToDisplay = !isUser && isLatest && !message.isComplete ? displayedContent : message.content;
 
   return (
     <div 
@@ -384,105 +423,111 @@ const MessageBubble = ({ message, index }) => {
           `}>
             <div className={`markdown-content text-[13px] sm:text-[15px] leading-relaxed break-words ${isUser ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
               {isUser ? (
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className="whitespace-pre-wrap">{contentToDisplay}</p>
               ) : (
-                <ReactMarkdown
-                  components={{
-                    code({ node, inline, className, children, ...props }) {
-                      const match = /language-(\w+)/.exec(className || '');
-                      const codeString = String(children).replace(/\n$/, '');
-                      
-                      return !inline && match ? (
-                        <CodeBlock
-                          language={match[1]}
-                          value={codeString}
-                          {...props}
-                        />
-                      ) : (
-                        <InlineCode {...props}>{children}</InlineCode>
-                      );
-                    },
-                    p({ children }) {
-                      return <p className="mb-3 last:mb-0 leading-6 sm:leading-7">{children}</p>;
-                    },
-                    ul({ children }) {
-                      return <ul className="list-none pl-0 mb-3 sm:mb-4 space-y-1.5 sm:space-y-2">{children}</ul>;
-                    },
-                    ol({ children }) {
-                      return <ol className="list-decimal pl-4 sm:pl-6 mb-3 sm:mb-4 space-y-1.5 sm:space-y-2">{children}</ol>;
-                    },
-                    li({ children }) {
-                      return (
-                        <li className="leading-6 sm:leading-7 flex items-start gap-2">
-                          <span className="text-blue-500 mt-1 text-sm">•</span>
-                          <span className="flex-1">{children}</span>
-                        </li>
-                      );
-                    },
-                    h1({ children }) {
-                      return <h1 className="text-xl sm:text-3xl font-bold mb-3 sm:mb-4 mt-4 sm:mt-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{children}</h1>;
-                    },
-                    h2({ children }) {
-                      return <h2 className="text-lg sm:text-2xl font-bold mb-2 sm:mb-3 mt-3 sm:mt-5 text-gray-900 dark:text-white">{children}</h2>;
-                    },
-                    h3({ children }) {
-                      return <h3 className="text-base sm:text-xl font-bold mb-2 mt-3 sm:mt-4 text-gray-900 dark:text-white">{children}</h3>;
-                    },
-                    blockquote({ children }) {
-                      return (
-                        <blockquote className="border-l-2 sm:border-l-4 border-blue-500 dark:border-blue-600 pl-3 sm:pl-4 py-2 italic my-3 sm:my-4 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 dark:to-transparent rounded-r-lg text-sm sm:text-base">
-                          {children}
-                        </blockquote>
-                      );
-                    },
-                    a({ children, href }) {
-                      return (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-semibold underline-offset-2"
-                        >
-                          {children}
-                        </a>
-                      );
-                    },
-                    strong({ children }) {
-                      return <strong className="font-bold text-gray-900 dark:text-white">{children}</strong>;
-                    },
-                    table({ children }) {
-                      return (
-                        <div className="overflow-x-auto my-4 sm:my-6 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
-                          <table className="min-w-full text-xs sm:text-sm">
+                <>
+                  <ReactMarkdown
+                    components={{
+                      code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        const codeString = String(children).replace(/\n$/, '');
+                        
+                        return !inline && match ? (
+                          <CodeBlock
+                            language={match[1]}
+                            value={codeString}
+                            {...props}
+                          />
+                        ) : (
+                          <InlineCode {...props}>{children}</InlineCode>
+                        );
+                      },
+                      p({ children }) {
+                        return <p className="mb-3 last:mb-0 leading-6 sm:leading-7">{children}</p>;
+                      },
+                      ul({ children }) {
+                        return <ul className="list-none pl-0 mb-3 sm:mb-4 space-y-1.5 sm:space-y-2">{children}</ul>;
+                      },
+                      ol({ children }) {
+                        return <ol className="list-decimal pl-4 sm:pl-6 mb-3 sm:mb-4 space-y-1.5 sm:space-y-2">{children}</ol>;
+                      },
+                      li({ children }) {
+                        return (
+                          <li className="leading-6 sm:leading-7 flex items-start gap-2">
+                            <span className="text-blue-500 mt-1 text-sm">•</span>
+                            <span className="flex-1">{children}</span>
+                          </li>
+                        );
+                      },
+                      h1({ children }) {
+                        return <h1 className="text-xl sm:text-3xl font-bold mb-3 sm:mb-4 mt-4 sm:mt-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{children}</h1>;
+                      },
+                      h2({ children }) {
+                        return <h2 className="text-lg sm:text-2xl font-bold mb-2 sm:mb-3 mt-3 sm:mt-5 text-gray-900 dark:text-white">{children}</h2>;
+                      },
+                      h3({ children }) {
+                        return <h3 className="text-base sm:text-xl font-bold mb-2 mt-3 sm:mt-4 text-gray-900 dark:text-white">{children}</h3>;
+                      },
+                      blockquote({ children }) {
+                        return (
+                          <blockquote className="border-l-2 sm:border-l-4 border-blue-500 dark:border-blue-600 pl-3 sm:pl-4 py-2 italic my-3 sm:my-4 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 dark:to-transparent rounded-r-lg text-sm sm:text-base">
                             {children}
-                          </table>
-                        </div>
-                      );
-                    },
-                    thead({ children }) {
-                      return <thead className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900">{children}</thead>;
-                    },
-                    th({ children }) {
-                      return (
-                        <th className="border-b-2 border-gray-200 dark:border-gray-700 px-3 sm:px-6 py-2 sm:py-3 text-left font-bold text-gray-900 dark:text-white">
-                          {children}
-                        </th>
-                      );
-                    },
-                    td({ children }) {
-                      return (
-                        <td className="border-b border-gray-200 dark:border-gray-800 px-3 sm:px-6 py-2 sm:py-4 text-gray-800 dark:text-gray-200">
-                          {children}
-                        </td>
-                      );
-                    },
-                    hr() {
-                      return <hr className="my-4 sm:my-8 border-gray-300 dark:border-gray-700" />;
-                    },
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
+                          </blockquote>
+                        );
+                      },
+                      a({ children, href }) {
+                        return (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline font-semibold underline-offset-2"
+                          >
+                            {children}
+                          </a>
+                        );
+                      },
+                      strong({ children }) {
+                        return <strong className="font-bold text-gray-900 dark:text-white">{children}</strong>;
+                      },
+                      table({ children }) {
+                        return (
+                          <div className="overflow-x-auto my-4 sm:my-6 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+                            <table className="min-w-full text-xs sm:text-sm">
+                              {children}
+                            </table>
+                          </div>
+                        );
+                      },
+                      thead({ children }) {
+                        return <thead className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900">{children}</thead>;
+                      },
+                      th({ children }) {
+                        return (
+                          <th className="border-b-2 border-gray-200 dark:border-gray-700 px-3 sm:px-6 py-2 sm:py-3 text-left font-bold text-gray-900 dark:text-white">
+                            {children}
+                          </th>
+                        );
+                      },
+                      td({ children }) {
+                        return (
+                          <td className="border-b border-gray-200 dark:border-gray-800 px-3 sm:px-6 py-2 sm:py-4 text-gray-800 dark:text-gray-200">
+                            {children}
+                          </td>
+                        );
+                      },
+                      hr() {
+                        return <hr className="my-4 sm:my-8 border-gray-300 dark:border-gray-700" />;
+                      },
+                    }}
+                  >
+                    {contentToDisplay}
+                  </ReactMarkdown>
+                  {/* Typing cursor indicator */}
+                  {isTyping && (
+                    <span className="inline-block w-1.5 h-4 bg-blue-500 ml-0.5 animate-pulse"></span>
+                  )}
+                </>
               )}
             </div>
           </div>
