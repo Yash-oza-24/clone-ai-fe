@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+// src/App.js
+import { useState, useEffect, useCallback } from 'react';
+import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import * as api from './services/api';
-import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { AlertCircle, WifiOff } from 'lucide-react';
 
-function App() {
+function AppContent() {
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -14,6 +16,7 @@ function App() {
   const [error, setError] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [sidebarRefreshing, setSidebarRefreshing] = useState(false);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -70,9 +73,20 @@ function App() {
     }
   };
 
+  const refreshConversations = useCallback(async () => {
+    try {
+      setSidebarRefreshing(true);
+      const data = await api.getConversations();
+      setConversations(data.conversations || []);
+    } catch (error) {
+      console.error('Error refreshing conversations:', error);
+    } finally {
+      setSidebarRefreshing(false);
+    }
+  }, []);
+
   const handleSelectConversation = async (id) => {
     if (id === currentConversationId) {
-      // Close sidebar on mobile when selecting same conversation
       if (window.innerWidth < 1024) {
         setSidebarOpen(false);
       }
@@ -83,10 +97,14 @@ function App() {
       setLoading(true);
       const data = await api.getConversation(id);
       setCurrentConversationId(id);
-      setMessages(data.conversation?.messages || []);
+      
+      const existingMessages = (data.conversation?.messages || []).map(msg => ({
+        ...msg,
+        isComplete: true
+      }));
+      setMessages(existingMessages);
       setError(null);
       
-      // Close sidebar on mobile after selection
       if (window.innerWidth < 1024) {
         setSidebarOpen(false);
       }
@@ -105,7 +123,6 @@ function App() {
     setInput('');
     setError(null);
     
-    // Close sidebar on mobile
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
@@ -114,11 +131,8 @@ function App() {
   const handleDeleteConversation = async (id) => {
     try {
       await api.deleteConversation(id);
-      
-      // Update conversations list optimistically
       setConversations(prev => prev.filter(conv => conv._id !== id));
       
-      // Clear current conversation if it's the deleted one
       if (currentConversationId === id) {
         handleNewChat();
       }
@@ -127,8 +141,7 @@ function App() {
     } catch (error) {
       console.error('Error deleting conversation:', error);
       setError('Failed to delete conversation. Please try again.');
-      // Reload conversations to sync state
-      loadConversations();
+      refreshConversations();
     }
   };
 
@@ -142,8 +155,11 @@ function App() {
     const userMessage = input.trim();
     setInput('');
     
-    // Optimistically add user message
-    const optimisticUserMessage = { role: 'user', content: userMessage };
+    const optimisticUserMessage = { 
+      role: 'user', 
+      content: userMessage,
+      isComplete: true
+    };
     setMessages(prev => [...prev, optimisticUserMessage]);
     setLoading(true);
     setError(null);
@@ -151,28 +167,35 @@ function App() {
     try {
       const data = await api.sendMessage(userMessage, currentConversationId);
       
-      // Update messages with actual response
-      setMessages(data.conversation?.messages || []);
+      const responseMessages = data.conversation?.messages || [];
       
-      // Update conversation ID if it's a new conversation
-      if (!currentConversationId && data.conversationId) {
-        setCurrentConversationId(data.conversationId);
+      const processedMessages = responseMessages.map((msg, index) => {
+        const isNewBotMessage = index === responseMessages.length - 1 && msg.role === 'assistant';
+        return {
+          ...msg,
+          isComplete: !isNewBotMessage
+        };
+      });
+      
+      setMessages(processedMessages);
+      
+      const newConversationId = data.conversationId || data.conversation?._id;
+      if (!currentConversationId && newConversationId) {
+        setCurrentConversationId(newConversationId);
       }
       
-      // Reload conversations to update sidebar
-      loadConversations();
+      refreshConversations();
       
     } catch (error) {
       console.error('Error sending message:', error);
       
-      // Add error message to chat
       const errorMessage = {
         role: 'assistant',
-        content: '❌ Sorry, I encountered an error processing your request. Please try again.'
+        content: '❌ Sorry, I encountered an error processing your request. Please try again.',
+        isComplete: true
       };
       setMessages(prev => [...prev, errorMessage]);
       
-      // Set error state
       setError('Failed to send message. Please try again.');
     } finally {
       setLoading(false);
@@ -180,7 +203,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-black dark:to-gray-950">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-950 transition-colors duration-300">
       {/* Error Toast */}
       {error && (
         <ErrorToast 
@@ -208,16 +231,19 @@ function App() {
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         loading={initialLoading}
+        refreshing={sidebarRefreshing}
       />
       
       <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-72' : 'ml-0'}`}>
         <ChatArea
           messages={messages}
+          setMessages={setMessages}
           input={input}
           setInput={setInput}
           onSendMessage={handleSendMessage}
           loading={loading}
           isOnline={isOnline}
+          currentChatId={currentConversationId}
         />
       </div>
     </div>
@@ -253,5 +279,14 @@ const ErrorToast = ({ message, onClose, isOnline }) => {
     </div>
   );
 };
+
+// Main App with Theme Provider
+function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
 
 export default App;
