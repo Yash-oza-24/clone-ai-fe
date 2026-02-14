@@ -1,11 +1,333 @@
+/* src/index.css */
 @import "tailwindcss";
 
-/* Hide scrollbar for textarea */
+/* ═══════════════════════════════════════════════════════════════ */
+/* TAILWIND V4 DARK MODE CONFIGURATION */
+/* ═══════════════════════════════════════════════════════════════ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* CUSTOM THEME VARIABLES */
+/* ═══════════════════════════════════════════════════════════════ */
+
+@theme {
+  --color-gray-950: #030712;
+  --animate-fadeIn: fadeIn 0.3s ease-out forwards;
+  --animate-slideIn: slideIn 0.3s ease-out forwards;
+  --animate-slideInLeft: slideInLeft 0.3s ease-out forwards;
+  --breakpoint-xs: 475px;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* THEME TRANSITION SYSTEM */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Global transition for theme changes */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Exclude elements that shouldn't transition */
+*:where([class*="animate-"], [class*="transition-transform"]) {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow, transform, opacity;
+}
+
+/* Faster transitions for interactive elements */
+button, a, input, textarea, select {
+  transition-duration: 150ms;
+}
+
+/* Theme variables */
+:root {
+  --theme-transition: 300ms;
+  --background-light: #ffffff;
+  --background-dark: #030712;
+  --foreground-light: #111827;
+  --foreground-dark: #f3f4f6;
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* Base HTML/Body transitions */
+html {
+  background-color: var(--background-light);
+  transition: background-color var(--theme-transition) ease-in-out;
+}
+
+html.dark {
+  background-color: var(--background-dark);
+}
+
+body {
+  background-color: inherit;
+  color: var(--foreground-light);
+  transition: 
+    background-color var(--theme-transition) ease-in-out,
+    color var(--theme-transition) ease-in-out;
+}
+
+html.dark body {
+  color: var(--foreground-dark);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* THEME TRANSITION OVERLAY (Optional smooth fade) */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.theme-transitioning::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.03) 100%);
+  animation: themeFlash 300ms ease-out forwards;
+}
+
+@keyframes themeFlash {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* KEYFRAME ANIMATIONS */
+/* ═══════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(59, 130, 246, 0.2);
+  }
+}
+
+@keyframes sun-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes moon-wobble {
+  0%, 100% {
+    transform: rotate(-10deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.3s ease-out forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* SCROLLBAR STYLES */
+/* ═══════════════════════════════════════════════════════════════ */
+
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+  display: none;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 9999px;
+  transition: background-color 200ms ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #374151;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #4b5563;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* CODE BLOCK SCROLLBAR */
+/* ═══════════════════════════════════════════════════════════════ */
+
+pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+pre::-webkit-scrollbar-track {
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  transition: background-color 200ms ease;
+}
+
+pre::-webkit-scrollbar-thumb {
+  background-color: #9ca3af;
+  border-radius: 4px;
+  transition: background-color 200ms ease;
+}
+
+pre::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280;
+}
+
+.dark pre::-webkit-scrollbar-track {
+  background-color: #1f2937;
+}
+
+.dark pre::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+}
+
+.dark pre::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* SELECTION COLORS */
+/* ═══════════════════════════════════════════════════════════════ */
+
+::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: #1e3a8a;
+}
+
+.dark ::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: #dbeafe;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* MARKDOWN CONTENT */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.markdown-content {
+  line-height: 1.75;
+}
+
+.markdown-content pre {
+  margin: 1rem 0;
+}
+
+.markdown-content img {
+  border-radius: 0.5rem;
+  max-width: 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* BUTTON ACTIVE STATES */
+/* ═══════════════════════════════════════════════════════════════ */
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* FOCUS STYLES */
+/* ═══════════════════════════════════════════════════════════════ */
+
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px rgba(59, 130, 246, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* THEME TOGGLE SPECIFIC STYLES */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.theme-toggle-track {
+  transition: background-color 300ms ease, box-shadow 300ms ease;
+}
+
+.theme-toggle-thumb {
+  transition: transform 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55), 
+              background-color 200ms ease,
+              box-shadow 300ms ease;
+}
+
+.theme-toggle-icon {
+  transition: transform 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55),
+              opacity 300ms ease,
+              color 200ms ease;
+}
+
+/* Sun animation when switching to light mode */
+.theme-toggle-sun-active {
+  animation: sun-spin 500ms ease-out;
+}
+
+/* Moon animation when switching to dark mode */
+.theme-toggle-moon-active {
+  animation: moon-wobble 500ms ease-out;
 }
